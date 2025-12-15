@@ -45,7 +45,7 @@ zones:
   - front_b
 
 # Optional: Reset display daily at a specific time (24hr format)
-# daily_clear_time: "04:00"
+daily_clear_time: "04:00"
 ```
 
 ## Configuration Options
