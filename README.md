@@ -20,12 +20,18 @@ A simple Lovelace card for displaying recent Frigate detection events in a horiz
 
 ### HACS (Recommended)
 
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=saihgupr&repository=frigate-events-card&category=dashboard)
+
+**Or manually add the custom repository:**
+
 1. Open HACS in Home Assistant
-2. Click the ⋮ menu → **Custom repositories**
-3. Add `https://github.com/saihgupr/frigate-events-card` with category **Lovelace**
-4. Search for "Frigate Events Card" and install
-5. Restart Home Assistant
-6. Add the card to your dashboard
+2. Click the **three dots menu** (⋮) in the top right corner
+3. Select **Custom repositories**
+4. Enter the repository URL: `https://github.com/saihgupr/frigate-events-card`
+5. Select **Dashboard** as the category
+6. Click **Add**
+7. Search for "**Frigate Events Card**" in HACS and click **Download**
+8. Restart Home Assistant
 
 ### Manual Installation
 
