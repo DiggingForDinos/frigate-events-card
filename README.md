@@ -2,10 +2,10 @@
 
 A simple Lovelace card for displaying recent Frigate detection events in a horizontal gallery 
 
-![Screenshot](images/snapshots/screenshot_1.png)
-![Screenshot](images/snapshots/screenshot_2.png)
-![Screenshot](images/snapshots/screenshot_3.png)
-![Screenshot](images/snapshots/screenshot_4.png)
+![Screenshot](https://raw.githubusercontent.com/DiggingForDinos/frigate-events-card/main/images/snapshots/screenshot_1.png)
+![Screenshot](https://raw.githubusercontent.com/DiggingForDinos/frigate-events-card/main/images/snapshots/screenshot_2.png)
+![Screenshot](https://raw.githubusercontent.com/DiggingForDinos/frigate-events-card/main/images/snapshots/screenshot_3.png)
+![Screenshot](https://raw.githubusercontent.com/DiggingForDinos/frigate-events-card/main/images/snapshots/screenshot_4.png)
 
 ## Features
 
