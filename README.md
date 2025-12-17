@@ -89,3 +89,7 @@ daily_clear_time: "04:00"
 ## License
 
 MIT
+
+---
+
+**If you find this card helpful, please ⭐ star the repository!**
