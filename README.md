@@ -86,10 +86,6 @@ daily_clear_time: "04:00"
 - Home Assistant with [Frigate Integration](https://github.com/blakeblackshear/frigate-hass-integration) installed
 - Frigate NVR with cameras configured
 
-## License
-
-MIT
-
 ---
 
 **If you find this card helpful, please ⭐ star the repository!**
