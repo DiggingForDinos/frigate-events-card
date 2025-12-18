@@ -7,7 +7,7 @@ import { HomeAssistant, LovelaceCardConfig } from './ha/types';
 import { FrigateEvent, FrigateEventChange } from './frigate/types';
 import { getEvents, getEventSnapshotURL, subscribeToEvents } from './frigate/api';
 
-const CARD_VERSION = '1.0.18';
+const CARD_VERSION = '1.0.1';
 
 // How often to poll for new events as a fallback (in ms)
 // This handles cases where WebSocket subscriptions silently die
@@ -258,7 +258,8 @@ export class FrigateEventsCard extends LitElement {
 
   private _formatTime(timestamp: number): string {
     const date = new Date(timestamp * 1000);
-    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+    // Let browser locale determine 12/24 hour format
+    return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   }
 
   private _formatDuration(startTime: number, endTime: number | null): string {
