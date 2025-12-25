@@ -7,7 +7,7 @@ import { HomeAssistant, LovelaceCardConfig } from './ha/types';
 import { FrigateEvent, FrigateEventChange } from './frigate/types';
 import { getEvents, getEventSnapshotURL, subscribeToEvents } from './frigate/api';
 
-const CARD_VERSION = '1.0.1';
+const CARD_VERSION = '1.0.2';
 
 // How often to poll for new events as a fallback (in ms)
 // This handles cases where WebSocket subscriptions silently die
@@ -61,6 +61,8 @@ export class FrigateEventsCard extends LitElement {
   private _unsubscribe?: () => void;
   private _pollInterval?: number;
   private _boundVisibilityHandler?: () => void;
+  private _modalContainer?: HTMLDivElement;
+  private static _stylesInjected = false;
 
   /**
    * Calculate the daily reset timestamp based on the configured time.
@@ -137,6 +139,7 @@ export class FrigateEventsCard extends LitElement {
       document.removeEventListener('visibilitychange', this._boundVisibilityHandler);
       this._boundVisibilityHandler = undefined;
     }
+    this._removeModal();
   }
 
   /**
@@ -250,10 +253,217 @@ export class FrigateEventsCard extends LitElement {
 
   private _handleEventClick(event: FrigateEvent): void {
     this._selectedEvent = event;
+    this._showModal();
   }
 
   private _handleModalClose(): void {
     this._selectedEvent = undefined;
+    this._removeModal();
+  }
+
+  private _injectModalStyles(): void {
+    if (FrigateEventsCard._stylesInjected) return;
+
+    const styleId = 'frigate-events-card-modal-styles';
+    if (document.getElementById(styleId)) {
+      FrigateEventsCard._stylesInjected = true;
+      return;
+    }
+
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      .frigate-events-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        box-sizing: border-box;
+        backdrop-filter: blur(5px);
+        animation: frigate-modal-fade-in 0.2s forwards;
+      }
+
+      @keyframes frigate-modal-fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+
+      .frigate-events-modal-content {
+        position: relative;
+        max-width: 90%;
+        max-height: 90%;
+        background: var(--card-background-color, #1c1c1c);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        display: flex;
+        flex-direction: column;
+        animation: frigate-modal-slide-up 0.2s forwards;
+      }
+
+      @keyframes frigate-modal-slide-up {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+
+      .frigate-events-modal-image-container {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        background: black;
+      }
+
+      .frigate-events-modal-image-container img {
+        max-width: 100%;
+        max-height: 55vh;
+        width: auto;
+        height: auto;
+        display: block;
+      }
+
+      .frigate-events-modal-close {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(0, 0, 0, 0.5);
+        color: white;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        cursor: pointer;
+        transition: background 0.2s;
+        backdrop-filter: blur(4px);
+        border: none;
+        font-family: inherit;
+      }
+
+      .frigate-events-modal-close:hover {
+        background: rgba(0, 0, 0, 0.8);
+      }
+
+      .frigate-events-modal-info {
+        padding: 16px;
+        background: var(--card-background-color, #1c1c1c);
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+      }
+
+      .frigate-events-modal-info-left {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .frigate-events-modal-info-right {
+        text-align: right;
+        flex-shrink: 0;
+      }
+
+      .frigate-events-modal-label {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--primary-text-color, #fff);
+        margin-bottom: 2px;
+      }
+
+      .frigate-events-modal-camera {
+        font-size: 14px;
+        color: var(--secondary-text-color, #aaa);
+      }
+
+      .frigate-events-modal-time {
+        font-size: 14px;
+        color: var(--primary-text-color, #fff);
+        font-weight: 500;
+        margin-bottom: 2px;
+      }
+
+      .frigate-events-modal-duration {
+        font-size: 13px;
+        color: var(--secondary-text-color, #aaa);
+        margin-bottom: 2px;
+      }
+
+      .frigate-events-modal-zones {
+        font-size: 12px;
+        color: var(--secondary-text-color, #aaa);
+        opacity: 0.8;
+      }
+    `;
+    document.head.appendChild(style);
+    FrigateEventsCard._stylesInjected = true;
+  }
+
+  private _showModal(): void {
+    if (!this._selectedEvent) return;
+
+    this._injectModalStyles();
+    this._removeModal(); // Clean up any existing modal
+
+    const event = this._selectedEvent;
+    const clientId = this._config?.frigate_client_id || 'frigate';
+    const snapshotUrl = getEventSnapshotURL(clientId, event.id, {
+      bbox: true,
+      timestamp: true
+    });
+    const duration = this._formatDuration(event.start_time, event.end_time);
+    const zones = this._formatZones(event.zones);
+
+    // Create modal container
+    this._modalContainer = document.createElement('div');
+    this._modalContainer.className = 'frigate-events-modal';
+    this._modalContainer.addEventListener('click', () => this._handleModalClose());
+
+    // Build modal content
+    this._modalContainer.innerHTML = `
+      <div class="frigate-events-modal-content">
+        <div class="frigate-events-modal-image-container">
+          <img src="${snapshotUrl}" alt="${event.label}" />
+          <button class="frigate-events-modal-close">x</button>
+        </div>
+        <div class="frigate-events-modal-info">
+          <div class="frigate-events-modal-info-left">
+            <div class="frigate-events-modal-label">${this._capitalize(event.label)}</div>
+            <div class="frigate-events-modal-camera">${this._formatCameraName(event.camera)}</div>
+          </div>
+          <div class="frigate-events-modal-info-right">
+            <div class="frigate-events-modal-time">${this._formatTime(event.start_time)}</div>
+            <div class="frigate-events-modal-duration">${duration}</div>
+            ${zones ? `<div class="frigate-events-modal-zones">${zones}</div>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Stop propagation on content click
+    const content = this._modalContainer.querySelector('.frigate-events-modal-content');
+    content?.addEventListener('click', (e) => e.stopPropagation());
+
+    // Close button handler
+    const closeBtn = this._modalContainer.querySelector('.frigate-events-modal-close');
+    closeBtn?.addEventListener('click', () => this._handleModalClose());
+
+    // Append to document body
+    document.body.appendChild(this._modalContainer);
+  }
+
+  private _removeModal(): void {
+    if (this._modalContainer && this._modalContainer.parentNode) {
+      this._modalContainer.parentNode.removeChild(this._modalContainer);
+      this._modalContainer = undefined;
+    }
   }
 
   private _formatTime(timestamp: number): string {
@@ -316,7 +526,6 @@ export class FrigateEventsCard extends LitElement {
                   </div>
                 `}
         </div>
-        ${this._selectedEvent ? this._renderModal(this._selectedEvent) : ''}
       </ha-card>
     `;
   }
@@ -339,41 +548,6 @@ export class FrigateEventsCard extends LitElement {
     `;
   }
 
-  private _renderModal(event: FrigateEvent): TemplateResult {
-    const clientId = this._config?.frigate_client_id || 'frigate';
-    const snapshotUrl = getEventSnapshotURL(clientId, event.id, {
-      bbox: true,
-      timestamp: true
-    });
-
-    const duration = this._formatDuration(event.start_time, event.end_time);
-    const zones = this._formatZones(event.zones);
-
-    return html`
-      <div class="modal" @click=${this._handleModalClose}>
-        <div class="modal-content" @click=${(e: Event) => e.stopPropagation()}>
-          <div class="modal-image-container">
-            <img 
-              src="${snapshotUrl}" 
-              alt="${event.label}" 
-            />
-            <div class="close-button" @click=${this._handleModalClose}>x</div>
-          </div>
-          <div class="modal-info">
-            <div class="modal-info-left">
-              <div class="modal-label">${this._capitalize(event.label)}</div>
-              <div class="modal-camera">${this._formatCameraName(event.camera)}</div>
-            </div>
-            <div class="modal-info-right">
-              <div class="modal-time">${this._formatTime(event.start_time)}</div>
-              <div class="modal-duration">${duration}</div>
-              ${zones ? html`<div class="modal-zones">${zones}</div>` : ''}
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  }
 
   private _capitalize(str: string): string {
     return str.charAt(0).toUpperCase() + str.slice(1);
@@ -440,133 +614,6 @@ export class FrigateEventsCard extends LitElement {
         display: block;
       }
 
-      .modal {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.85);
-        z-index: 999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-        box-sizing: border-box;
-        backdrop-filter: blur(5px);
-        opacity: 0;
-        animation: fade-in 0.2s forwards;
-      }
-
-      @keyframes fade-in {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
-
-      .modal-content {
-        position: relative;
-        max-width: 90%;
-        max-height: 90%;
-        background: var(--card-background-color, #fff);
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-        display: flex;
-        flex-direction: column;
-        animation: slide-up 0.2s forwards;
-      }
-
-      @keyframes slide-up {
-        from { transform: translateY(20px); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
-      }
-
-      .modal-image-container {
-        position: relative;
-        display: flex;
-        justify-content: center;
-        background: black;
-      }
-
-      .modal-image-container img {
-        max-width: 100%;
-        max-height: 55vh;
-        width: auto;
-        height: auto;
-        display: block;
-      }
-
-      .close-button {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        background: rgba(0, 0, 0, 0.5);
-        color: white;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 18px;
-        cursor: pointer;
-        transition: background 0.2s;
-        backdrop-filter: blur(4px);
-      }
-
-      .close-button:hover {
-        background: rgba(0, 0, 0, 0.8);
-      }
-
-      .modal-info {
-        padding: 16px;
-        background: var(--card-background-color, #fff);
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 16px;
-      }
-
-      .modal-info-left {
-        flex: 1;
-        min-width: 0;
-      }
-
-      .modal-info-right {
-        text-align: right;
-        flex-shrink: 0;
-      }
-
-      .modal-label {
-        font-size: 20px;
-        font-weight: 600;
-        color: var(--primary-text-color);
-        margin-bottom: 2px;
-      }
-
-      .modal-camera {
-        font-size: 14px;
-        color: var(--secondary-text-color);
-      }
-
-      .modal-time {
-        font-size: 14px;
-        color: var(--primary-text-color);
-        font-weight: 500;
-        margin-bottom: 2px;
-      }
-
-      .modal-duration {
-        font-size: 13px;
-        color: var(--secondary-text-color);
-        margin-bottom: 2px;
-      }
-
-      .modal-zones {
-        font-size: 12px;
-        color: var(--secondary-text-color);
-        opacity: 0.8;
-      }
     `;
   }
 }
